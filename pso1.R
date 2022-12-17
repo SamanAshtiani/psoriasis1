@@ -125,7 +125,7 @@ for(i in 1:nrow(sampleInfo)) {
     sampleInfo$group[i] <- "L"
   }
 }
-sampleInfo$group
+class(sampleInfo$group)
 sampleInfo$title
 
 sampleInfo[1:5, ]
@@ -157,25 +157,32 @@ pdf("./genes_acrossSamples.pdf", width=170)
 boxplot(ex[,1:170])
 dev.off()
 
-#### if boxplot expression distribution per sample was not normalized: ----
+### if boxplot expression distribution per sample was not normalized: ----
 #ex <- normalizeQuantiles(ex)
 #exprs(gset) <- ex
 
-#heatmap
-pdf("./corr_heat.pdf")
-#load gplots library to add e.g. color to pheatmap
-pheatmap(cor(ex), labels_row = gr, labels_col = gr, color = greenred(256))
-dev.off()
+### heatmap ----
+# tail(colnames(ex))
+# head(colnames(ex))
+# ex[1:5,1:5]
+# excor <- cor(ex)
+# excor[1:5, 1:5]
+# 
+# ex_t <- as.data.frame(t(ex[, 1:(ncol(ex)-2)]))
+# ex_t[1:5,ncol(ex_t)]
+# dim(ex_t)
+# ex_t$group <- sampleInfo$group
+# 
+# pdf("./corr_heat.pdf")
+# #load gplots library to add e.g. color to pheatmap
+# pheatmap(cor(ex_t[,-ncol(ex_t)][,1:2000]), labels_row = ex_t$group, labels_col = ex_t$group)
+# dev.off()
 #samples of one single tumor from the same person contain more epigenetic variations and mutations than all other cells 
 #of the same person!!
 
 
-ex[1:5,1:5]
-excor <- cor(ex)
-excor[1:5, 1:5]
+### pca ----
 
-##pca
-#############
 pc <- prcomp(ex)
 dim(pc$x) #54675   170  : 54675 points in a 170-dimention space
 
