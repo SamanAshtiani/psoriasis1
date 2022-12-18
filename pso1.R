@@ -28,7 +28,7 @@ BiocManager::install("Vennerable")
 
 library(pheatmap) #
 library(affy)  
-#library(gplots)
+library(ggplot2) #
 library(limma)
 library(GEOquery)  #
 #library(gcrma)
@@ -183,22 +183,30 @@ dev.off()
 
 ### pca ----
 
-pc <- prcomp(ex)
-dim(pc$x) #54675   170  : 54675 points in a 170-dimention space
-
-##?? try the whole MI network construction after subtracting means
 ##to deal with genes with low variation between groups: subtract the mean expression of each gene
 #-->> each row is minus the mean expression of the gene in that row:
-ex.scale <- t(scale(t(ex), scale = FALSE, center = TRUE)) #scale acts on columns -> mean=0 and divided by SD for each column -> z-score
-mean(ex.scale[1,]) #almost 0
+ex.scale <- as.data.frame(scale(t(ex[,1:170]), scale = FALSE, center = TRUE))
+#scale acts on columns -> mean=0 and divided by SD for each column -> z-score
+mean(ex.scale[,1]) #almost 0 if scale = TRUE
+dim(ex.scale) # 170 54675
+class(ex.scale)
 
 ##now pca of samples:
+pc <- mixOmics::pca(ex.scale, ncomp = 5)
+dim(pc$variates$X) #170  5  : 170 points in a 5-dimension space
+pc$variates$X
+
+#plot pca
+pcnames <- sprintf("PC%d (%2.0f%%)", 1:ncol(pc$variates$X), unlist(pc$prop_expl_var)*100)
+
+plot( ggplot(data.frame(pc$variates$X, sampleInfo), aes(x=PC1, y=PC2, group=group, color=group, shape= group )) + geom_point()
++ theme_bw() + xlab(pcnames[1]) + ylab(pcnames[2]) +
+theme(legend.position=c(0.9, 0.9), legend.justification=c(0,0), legend.background =element_rect(fill="transparent"))
+)
+
 dim(pc$rotation)
 class(pc$rotation) #matrix, I want to add group names and..., if you add a character, all types are coerced to charachter
 #but dataframe can harbour several classes in different columns
-pcr <- data.frame(pc$rotation[,1:3], Group = gr) #maximum 3D plot
-pcr[1:5,1:4]
-dim(pcr)
 
 #ggplot only works with dataframes as input data. you tell ggplot which column is used as the target property of plot
 
@@ -547,7 +555,8 @@ dev.off()
 # We do not recommend filtering genes by differential expression. WGCNA is designed to be an unsupervised analysis
 # method that clusters genes based on their expression profiles. Filtering genes by differential expression will 
 # lead to a set of correlated genes that will essentially form a single (or a few highly correlated) modules. 
-# It also completely invalidates the scale-free topology assumption, so choosing soft thresholding power by scale-free topology fit will fail.
+# It also completely invalidates the scale-free topology assumption,
+# so choosing soft thresholding power by scale-free topology fit will fail.
 # """
 #### Using rs1 expression data
 ##preparing expression (feature) dataframe
@@ -801,7 +810,8 @@ hist(net_N_emp_lower[net_N_emp_lower > 0.2])
 
 #########################################################################
 ##minet with discretization equalfreq and estimator mi.mm
-net_N_mm <- minet(mi_N_t, disc = "equalfreq", estimator = "mi.mm") #, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_N)) 
+net_N_mm <- minet(mi_N_t, disc = "equalfreq", estimator = "mi.mm") 
+#, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_N)) 
 #plot( as(net_N_mm ,"graphNEL") )
 net_N_mm[1:5, 1:5]
 colnames(net_N_mm[1:5, 1:5])
@@ -1127,7 +1137,8 @@ hist(net_N_emp_lower[net_N_emp_lower > 0.2])
 
 ####
 ##minet with discretization equalfreq and estimator mi.mm
-net_N_mm <- minet(mi_N_t, disc = "equalfreq", estimator = "mi.mm") #, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_N)) 
+net_N_mm <- minet(mi_N_t, disc = "equalfreq", estimator = "mi.mm") 
+#, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_N)) 
 #plot( as(net_N_mm ,"graphNEL") )
 net_N_mm[1:5, 1:5]
 colnames(net_N_mm[1:5, 1:5])
@@ -1272,7 +1283,8 @@ hist(net_D_emp_lower[net_D_emp_lower > 0.2])
 ##minet with discretization equalfreq and estimator mi.mm
 # library(future)
 # plan(tweak(workers=4, cluster))
-net_D_mm <- minet(mi_D_t, disc = "equalfreq", estimator = "mi.mm") #, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_D)) 
+net_D_mm <- minet(mi_D_t, disc = "equalfreq", estimator = "mi.mm")
+#, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_D)) 
 #plot( as(net_D_mm ,"graphDEL") )
 net_D_mm[1:5, 1:5]
 colnames(net_D_mm[1:5, 1:5])
