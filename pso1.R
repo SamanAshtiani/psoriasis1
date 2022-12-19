@@ -29,7 +29,7 @@ BiocManager::install("Vennerable")
 library(pheatmap) #
 library(affy)  
 library(ggplot2) #
-library(limma)
+library(limma) #
 library(GEOquery)  #
 #library(gcrma)
 library(BiocGenerics )
@@ -194,7 +194,7 @@ class(ex.scale)
 ##now pca of samples:
 pc <- mixOmics::pca(ex.scale, ncomp = 5)
 dim(pc$variates$X) #170  5  : 170 points in a 5-dimension space
-pc$variates$X
+rownames(pc$variates$X)
 
 #plot pca
 pcnames <- sprintf("PC%d (%2.0f%%)", 1:ncol(pc$variates$X), unlist(pc$prop_expl_var)*100)
@@ -202,260 +202,17 @@ pcnames <- sprintf("PC%d (%2.0f%%)", 1:ncol(pc$variates$X), unlist(pc$prop_expl_
 plot( ggplot(data.frame(pc$variates$X, sampleInfo), aes(x=PC1, y=PC2, group=group, color=group, shape= group )) + geom_point()
 + theme_bw() + xlab(pcnames[1]) + ylab(pcnames[2]) +
 theme(legend.position=c(0.9, 0.9), legend.justification=c(0,0), legend.background =element_rect(fill="transparent"))
+# + geom_label(aes(label=rownames(pc$variates$X)), label.size = 0.01)
 )
 
-dim(pc$rotation)
-class(pc$rotation) #matrix, I want to add group names and..., if you add a character, all types are coerced to charachter
-#but dataframe can harbour several classes in different columns
+#find lesional outliers:
+pcvar <- as.data.frame(pc$variates$X[,1:2])
+pcvar[(pcvar$PC1<0 & pcvar$PC2>-100 & sampleInfo$group == "L"),]
 
-#ggplot only works with dataframes as input data. you tell ggplot which column is used as the target property of plot
+# newly GEO2R run result ----
 
-
-
-
-
-#### RS1
-#AffyBatch object
-#(pso.affybatch format) is a HG-U133_Plus_2 microarray with 54675 affy IDs. 
-#Each affy ID stands for one probe set with which you measure the expression
-#of genes. In total,
-pso.affybatch<-ReadAffy()
-dim(pso.affybatch)  #1164  1164
-#pData(pso.affybatch) :show ordering of samples
-#image(pso.affybatch[,1])
-#hist(pso.affybatch)
-#exprs(pso.affybatch)
-#plot(exprs(pso.affybatch)[,1], exprs(pso.affybatch)[,2])
-
-pData(pso.affybatch)
-
-#for plotting start
-################
-expression.log<-log2(exprs(pso.affybatch))
-expression<-exprs(pso.affybatch)
-# set parameters and draw the plot
-palette(c("#a2cbfa","#f5cbcb", "#AABBCC"))
-dev.new(width=4+dim(pso.affybatch)[[2]]/5, height=7)
-title <- paste ("GSE30999", '/', annotation(pso.affybatch), " All log-transfromed Samples", sep ='')
-boxplot(expression.log, boxwex=0.6, notch=T, main=title, outline=FALSE, las=2, col=fl)
-legend("topleft", labels, fill=palette(), bty="n")
-#for plotting finish
-
-#len_neg_exp<-length(exprs(pso.affybatch)[which(expression <= 0)])
-
-write.table(expression, file="exp.csv3",row.names=FALSE,col.names=T, quote=F, sep="\t")
-
-
-#normalize 
-data.mass <- mas5(pso.affybatch)
-dim(data.mass)
-data.mass.exp<-exprs(data.mass)
-dim(data.mass.exp)
-
-
-write.table(data.mass.exp, file="data_mass_exp3.csv",row.names=TRUE,col.names=T, quote=F, sep="\t")
-data.mass.exp <- read.table("../data_mass_exp3.csv", sep = "\t")
-dim(data.mass.exp)
-data.mass.exp[1:5,1:5]
-
-#?? log transorm of Normalized Expression value  
-#??necessary to log2 transform already normalized expression data?
-#?? some papers say mas5 output is already log transformed but it some papers they do log2 on mas5 output
-qxm <- as.numeric(quantile(data.mass.exp, c(0., 0.25, 0.5, 0.75, 0.99, 1.0), na.rm=T))
-LogCm <- (qxm[5] > 100) ||(qxm[6]-qxm[1] > 50 && qxm[2] > 0) ||
-  (qxm[2] > 0 && qxm[2] < 1 && qxm[4] > 1 && qxm[4] < 2)
-if (LogCm) 
-{ data.mass.exp[which(data.mass.exp<= 0)] <- NaN 
- exprs(data.mass) <- log2(data.mass.exp)}
-
-
-
-
-write.table(exprs(data.mass), file="data_mass_exp_log3.csv",row.names=TRUE,col.names=T, quote=F, sep="\t")
-
-
-bs <- c()
-
-for (i in 1:10) {
-  if (i <= 5) {bs <- paste0(bs, "0")}
-  else {bs <- paste0(bs, "1")}
-}
-  
-bs
-
-
-# group names for all samples in a series
-gsms <- paste0("00000000000000000000000000000000000000000000000000000000",
-               "000000000000000000000000000001111111111111111111111111111",
-               "111111111111111111111111111111111111111111111111111111111")
-nchar(gsms)
-
-sml <- c()
-for (i in 1:nchar(gsms)) { sml[i] <- substr(gsms,i,i) }
-
-sml
-
-#set group names
-sml <- paste("G", sml, sep="")  
-sml
-
-# order samples by group
-fl <- as.factor(sml)
-fl
-labels <- c("Non-Lesional","Lesional")
-fl
-
-# set parameters and draw the plot
-palette(c("#a2cbfa","#f5cbcb", "#AABBCC"))
-dev.new(width=4+dim(pso.affybatch)[[2]]/5, height=7)
-title <- paste ("GSE30999", '/', annotation(pso.affybatch), " All log-transfromed Normalized Samples", sep ='')
-boxplot(exprs(data.mass), boxwex=0.6, notch=T, main=title, outline=FALSE, las=2, col=fl)
-legend("topleft", labels, fill=palette(), bty="n")
-
-
-
-#set up the data and proceed the analysis
-data.mass$sample
-data.mass$description<-fl
-
-# design matrix gives a matrix representation of different groups of the data, each column, one group, we have two
-# groups therefore two columns and 170 rows, each column has 1s and 0s to indicate the presence of a datapoint(sample) 
-#in each group. +0 is used so that the intercept column is omitted from the design matrix
-design<-model.matrix(~description+0 ,data.mass)
-design
-colnames(design)<-levels(fl)
-fit<-lmFit(data.mass,design)
-fit
-
-## look at limma package documentation which explains how linear models are used for t-test
-cont.matrix<-makeContrasts(G1-G0, levels=design)
-cont.matrix
-fit1 <- contrasts.fit(fit, cont.matrix)
-fit2 <- eBayes(fit1, 0.01)
-
-top<-topTable(fit2, adjust="fdr", sort.by="B", number=Inf)   #Mobasheri has the 2000 limit  #?? what is "B" column ?
-#sum(top$P.Value<0.01)  :  28770  ,  p1<-top$P.Value[top$P.Value<0.01]
-#sum(top$adj.P.Val<0.01) :27018, p2<-top$adj.P.Val[top$adj.P.Val<0.01]
-#which((top$P.Value<0.01))
-#dim(top[which(top$P.Value<0.01  & top$adj.P.Val<0.01),]) : 27018 
-
-
-##extract geneSymbol
-#first approach:
-feature.data <- gset@featureData@data
-feature.data[1:5,1:5]
-#second approach
-rownames(top)
-probeList <- rownames(top)
-geneSymbol <- getSYMBOL(probeList,'hgu133plus2.db') 
-top$genesymbol<-geneSymbol
-top$genesymbol
-
-DEG_selected<-top[which(top$P.Value<=0.01  & top$adj.P.Val<=0.01 & (top$logFC>=1 | top$logFC<=-1) & top$genesymbol != 'NA') ,]
-rownames(DEG_selected)
-
-DEG_selected$prob_ID<-rownames(DEG_selected)
-uniq_genes<-unique(DEG_selected$genesymbol)
-
-####select uniqe genes from their probes with respect to max logFC of each gene similar group 
-## ?? To decide which probe to choose among probs of one genes, some probes of the same gene
-#have negative and some have positive logFC !!
-split<-split(DEG_selected,DEG_selected$genesymbol)
-lapp<-lapply(split,function(chunk)
-{ if (chunk$logFC>0) { chunk[which.max(chunk$logFC),] }
-else{
-chunk[which.min(chunk$logFC),]
-}})
-length(lapp)
-DEG_selected_uniq<-do.call(rbind,lapp)
-dim(DEG_selected_uniq)
-###**** 2231 should be the number of DEG_selected_uniq_orderB 
-
-#select up and down regulated genes
-upreg.df <- subset(DEG_selected_uniq, logFC>0 & adj.P.val<0.05)
-DEG_selected_uniq_up<-DEG_selected_uniq[which(DEG_selected_uniq$logFC>0) ,]
-DEG_selected_uniq_down<-DEG_selected_uniq[which(DEG_selected_uniq$logFC<0) ,]
-DEG_selected_uniq_orderB<-DEG_selected_uniq[order(-DEG_selected_uniq$B),][1:2000,]
-old_2000 <- readxl::read_excel("/Users/saman/Dropbox/my_publications/rs1/results/Table_S1_top_2000_DEGs.xlsx")
-old_2000$B #is already sorted by B
-old_2000_lst <- old_2000$genesymbol
-old_2000_lst
-
-
-length(intersect(rownames(DEG_selected_uniq_orderB), old_2000$...1))
-#1992   #?? check 3 missing CELL files with newer date of "Added"
-length(intersect(rownames(DEG_selected_uniq_orderB), tops)) # 16
-
-#export
-#write.table(top, file="DEG_All.csv", sep=",")
-write.table(top, file="DEG_All_3.txt", sep="\t")
-write.table(expression, file="exp3.txt", sep="\t")
-write.table(data.mass.exp, file="mass_exp3.txt", sep="\t")
-write.table(DEG_selected_uniq, file="DEG_selected_uniq_3.txt", sep="\t")
-write.table(DEG_selected_uniq_orderB, file="DEG_selected_uniq_B3.txt", sep="\t")
-write.table(DEG_selected, file="DEG_selected_3.txt", sep="\t")
-write.table(DEG_selected_uniq_up, file="DEG_selected_uniq_up_3.txt", sep="\t")
-write.table(DEG_selected_uniq_down, file="DEG_selected_uniq_down_3.txt", sep="\t")
-
-
-#Read files
-data_mass_exp_log3_df <- read.table("/Users/saman/Dropbox/my_publications/rs1/data/DataSet/data_mass_exp_log3.csv", sep = "\t")
-data_mass_exp_log3_df[1:5, 1:5]
-dim(data_mass_exp_log3_df)
-colnames(data_mass_exp_log3_df)[1:10]
-rownames(data_mass_exp_log3_df)[1:10]
-DEG_selected_uniq_orderB <- read.table("/Users/saman/Dropbox/my_publications/rs1/data/DataSet/DEG_selected_uniq_B3.txt")
-
-###################################################
-# intersection between DEGs and Top communicatives
-###################################################
-tops <- c("CCNA2", "CCNB1", "CDC20", "CDK1", "FOXM1", "MKI67", "STAT3", "EGF", "H2AFX", "IL1B",
-          "IFNG", "STAT1","CXCL8", "CXCL10", "MAPK14", "MCL1","UBE2N")
-tops
-
-#pso_gda <- readxl::read_excel("/Users/saman/Dropbox/my_publications/rs1/
-#data/psoriasis_Vulgaris_evidence-based_assiciated_genes_C0263361_disease_gda_summary.xlsx")
-general_pso_gda <- readxl::read_excel(
-  "/Users/saman/Dropbox/my_publications/rs1/data/psoriasis_C0033860_disease_gda_summary.xlsx")
-length(general_pso_gda$Gene)
-general_pso_gda[1:30, c("Gene", "Gene_id")]
-
-tops[tops %in% general_pso_gda$Gene]  #11
-
-
-### for all DEGs
-top2000DEGs <- readxl::read_excel(
-  "/Users/saman/Dropbox/my_publications/rs1/journal_genes/supplementary_materials/Table_S1.xlsx")
-top2000DEGs$genesymbole
-length(intersect(general_pso_gda$Gene , top2000DEGs$genesymbole)) #225
-length(top2000DEGs$genesymbole[top2000DEGs$genesymbole %in% general_pso_gda$Gene])  #225
-length(unique(top2000DEGs$genesymbole)) #2000
-
-length(new2000_df$genesymbol[new2000_df$genesymbol %in% general_pso_gda$Gene])  # without unification 235
-length(new2000_df$genesymbol[new2000_df$genesymbol %in% general_pso_gda$Gene])
-length(unique(new2000_df$genesymbol)) # 1582
-
-length(new3000_df$genesymbol[new3000_df$genesymbol %in% general_pso_gda$Gene]) #310
-length(intersect(general_pso_gda$Gene, new3000_genes)) #225  #?? why intersect and %in% have different results??
-length(unique(new3000_df$genesymbol)) #2362
-
-length(intersect(new2000_genes , old_2000_lst)) # 943 
-#shows there are several probes for the same gene with high B if probes new list is not unified
-#After unification of genes in DEG_selected: 1076
-
-###intersection between three sets
-tops_gda <- tops[tops %in% general_pso_gda$Gene]
-top2000DEGs$genesymbol[top2000DEGs$genesymbol %in% tops_gda]
-
-
-
-
-########################### 
-#### newly GEO2R run result
-############################
-
-newtop <- read.delim("./workshop/results/GSE30999_top_table.tsv", sep = "\t")
-dim(newtop)
+newtop <- read.delim("~/Dropbox/systems_biology_projects/pso_cmm/workshop/results/GSE30999_top_table.tsv", sep = "\t")
+dim(newtop) #54675 6
 newtop$ID
 colnames(newtop)
 rownames(newtop)
@@ -469,34 +226,74 @@ class(geneSymbol)
 newtop$genesymbol<-geneSymbol
 newtop$genesymbol
 dim(newtop)
+newtop[1:14,1:5]
 
-DEG_selected<-newtop[which(newtop$adj.P.Val<=0.01 & (newtop$logFC>=1 | newtop$logFC<=-1) & newtop$genesymbol != 'NA') ,]
+length(which(newtop$adj.P.Val<=0.01 & (newtop$logFC>=1 | newtop$logFC<=-1) & newtop$genesymbol != 'NA')) # 4098,index 12: NA
+length(newtop$adj.P.Val<=0.01 & (newtop$logFC>=1 | newtop$logFC<=-1) & newtop$genesymbol != 'NA') #54675
+length(which(newtop$adj.P.Val<=0.01 & (newtop$logFC>=1 | newtop$logFC<=-1) & !is.na(newtop$genesymbol)))
+#There are NA e.g. at index 12
+class(newtop$genesymbol[12]) # NAs in this case were characters
+
+DEG_selected<-newtop[which(newtop$adj.P.Val<=0.01 & (newtop$logFC>=1 | newtop$logFC<=-1) & !is.na(newtop$genesymbol)) ,]
+
 rownames(DEG_selected)
+colnames(DEG_selected)
 
-
-dim(DEG_selected) #3995 with genesymbol and 4899 with Gene.symbol
-length(DEG_selected$Gene.symbol)
-length(DEG_selected$genesymbol)
-unique(DEG_selected$Gene.symbol)
+dim(DEG_selected) #4098 7
 unique(DEG_selected$genesymbol)
-length(unique(DEG_selected$Gene.symbol)) #3124
-length(unique(DEG_selected$genesymbol)) #3125
+length(unique(DEG_selected$genesymbol)) #3226
 
 #select uniqe genes with respect to max logFC of each gene similar group 
 split<-split(DEG_selected,DEG_selected$genesymbol)
 class(split)
 split[[1]]
+split[1]
 
 lapp<-lapply(split,function(chunk)
-{ if (mean(chunk$logFC>0)) { chunk[which.max(chunk$B),] }  #change chunk$logFC into $B
+{ if (mean(chunk$logFC > 0)) { chunk[which.max(chunk$B),] }  #changed chunk$logFC into $B
   else{
     chunk[which.min(chunk$logFC),]
   }})
-length(lapp)  #3320
+length(lapp)  #3226
 DEG_selected_uniq<-do.call(rbind,lapp)
 dim(DEG_selected_uniq)
 DEG_selected_uniq[1:5,]
+lapp[1]
+lapp[[1]]
+names(lapp)
 
+
+
+
+
+
+
+split <- split(head(DEG_selected, n=50), head(DEG_selected,50)$genesymbol)
+
+#temp_mtr <- as.data.frame(matrix(NA, nrow = 1, ncol = 7))
+#colnames(temp_mtr) <- colnames(DEG_selected)
+
+temp_mtr <- data.frame()
+lapp <- lapply(split,function(chunk)
+  if(mean(chunk$logFC) > 0) 
+  {
+    ind <- which.max(chunk$B)
+    temp_mtr <- rbind(temp_mtr,chunk[ind,]) 
+  } else
+  {
+    ind <- which.min(chunk$B)
+    temp_mtr <- rbind(temp_mtr,chunk[ind,]) 
+  }
+  )
+
+
+# KYNU with B factor 178 must have been selected
+lapp
+lapp$KYNU
+split
+split$KYNU[1,]
+temp_mtr
+do.call("rbind", lapp)
 
 new3000_df <- DEG_selected[order(DEG_selected$B, decreasing = TRUE),][1:3000,]
 dim(new3000_df)
