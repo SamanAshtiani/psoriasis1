@@ -209,7 +209,7 @@ theme(legend.position=c(0.9, 0.9), legend.justification=c(0,0), legend.backgroun
 pcvar <- as.data.frame(pc$variates$X[,1:2])
 pcvar[(pcvar$PC1<0 & pcvar$PC2>-100 & sampleInfo$group == "L"),]
 
-# newly GEO2R run result ----
+# GEO2R-based DEGs result ----
 
 newtop <- read.delim("~/Dropbox/systems_biology_projects/pso_cmm/workshop/results/GSE30999_top_table.tsv", sep = "\t")
 dim(newtop) #54675 6
@@ -256,97 +256,36 @@ lapp<-lapply(split,function(chunk)
   }})
 length(lapp)  #3226
 DEG_selected_uniq<-do.call(rbind,lapp)
-dim(DEG_selected_uniq)
-DEG_selected_uniq[1:5,]
-lapp[1]
-lapp[[1]]
-names(lapp)
-
-
-
-
-
-
-
-split <- split(head(DEG_selected, n=50), head(DEG_selected,50)$genesymbol)
-
-#temp_mtr <- as.data.frame(matrix(NA, nrow = 1, ncol = 7))
-#colnames(temp_mtr) <- colnames(DEG_selected)
-
-temp_mtr <- data.frame()
-lapp <- lapply(split,function(chunk)
-  if(mean(chunk$logFC) > 0) 
-  {
-    ind <- which.max(chunk$B)
-    temp_mtr <- rbind(temp_mtr,chunk[ind,]) 
-  } else
-  {
-    ind <- which.min(chunk$B)
-    temp_mtr <- rbind(temp_mtr,chunk[ind,]) 
-  }
-  )
-
-
-# KYNU with B factor 178 must have been selected
-lapp
+#dim(DEG_selected_uniq) #3226  7
+#DEG_selected_uniq[1:5,]
+#lapp[1]
+#lapp[[1]]
+#names(lapp)
+    
+# KYNU with B factor 178 must be selected
 lapp$KYNU
-split
 split$KYNU[1,]
 temp_mtr
 do.call("rbind", lapp)
 
-new3000_df <- DEG_selected[order(DEG_selected$B, decreasing = TRUE),][1:3000,]
-dim(new3000_df)
-new3000_df$B
-new3000_genes <- new3000_df$genesymbol
-new3000_ids <- new3000_df$ID
+new2000_df <- DEG_selected[order(DEG_selected$B, decreasing = TRUE),][1:2000,]
+dim(new2000_df)
+new2000_df$B
+new2000_genes <- new2000_df$genesymbol
+new2000_ids <- new2000_df$ID
 
 new2000_u_df <- DEG_selected_uniq[order(DEG_selected_uniq$B, decreasing = TRUE),][1:2000,]
-dim(new2000_u_df)
+#dim(new2000_u_df)  
 new2000_u_genes <- new2000_u_df$genesymbol
 length(new2000_u_genes)
-length(intersect(DEG_selected_uniq$genesymbol, old_2000_lst)) #1370
-length(intersect(new3000_genes, old_2000_lst))
-
-
-##############################
-#Venn Diagrams:
-#############################
-#install.packages("VennDiagram")
-library(VennDiagram)
-
-# move to new plotting page
-grid.newpage()
-
-
-# create pairwise Venn diagram
-draw.pairwise.venn(area1=1308, area2=17,cross.area=11,
-                   category=c("Mango","Banana"),fill=c("Red","Yellow"))
-
-# create Venn diagram with three sets
-pdf("intersections_Venn.pdf", width = 8, height = 8)
-draw.triple.venn(area1=1308, area2=2000, area3=17, 
-                 n12=225, n23=17, n13=11, n123=11, 
-                 category=c("GDA(1308)","Top_DEGs(2000)","Top_results(17)"),
-                 col="Red",fill=c("Green","Yellow","Blue"), cat.cex=1, scaled=TRUE, euler.d = TRUE)
-
-
-install.packages("eulerr")
-library(eulerr)
-VennDiag <- euler(c("GDA (1308)" = 1308, "Top DEGs (2000)" = 2000,
-                    "Top results (17)" = 17, "GDA (1308)&Top DEGs (2000)" = 255,
-                    "Top DEGs (2000)&Top results (17)" = 17, 
-                    "GDA (1308)&Top results (17)" = 11, "GDA (1308)&Top DEGs (2000)&Top results (17)" = 11))
-plot(VennDiag, counts = TRUE, font=1, cex=1, alpha=0.5, fill=c("Green","Yellow","Blue"))
-
-dev.off()
+new2000_u_id <- new2000_u_df$ID
 
 
 
 
-################
-#####CMM1 begings
-################
+
+# CMM1 begings ----
+
 # """
 # #for WGCNA:
 # We do not recommend filtering genes by differential expression. WGCNA is designed to be an unsupervised analysis
@@ -355,312 +294,21 @@ dev.off()
 # It also completely invalidates the scale-free topology assumption,
 # so choosing soft thresholding power by scale-free topology fit will fail.
 # """
-#### Using rs1 expression data
-##preparing expression (feature) dataframe
-#########################################
-allProbes <- rownames(data_mass_exp_log3_df)
-allProbes[1:5]
-all_geneSymbol <- getSYMBOL(allProbes,'hgu133plus2.db')
-length(all_geneSymbol)
-data_mass_exp_log3_df$all_genesymbol <- all_geneSymbol
-data_mass_exp_log3_df$all_genesymbol[1:5]
 
-###select uniqe genes 
-split<-split(data_mass_exp_log3_df,data_mass_exp_log3_df$all_genesymbol)
-length(split)  #20174
-split$A1CF[1:5,1:5]
-rownames(split$A2M)
-split$A2M[,1]
-split$A2M[,ncol(split$A2M)]
+## Using new expression data based on GEO2R ----
+## separate D and N data ----
 
-which(is.na(split$A1BG), arr.ind = T)
-split$A1BG[which(is.na(split$A1BG), arr.ind = T)[,1],]
-
-lapp <- c()
-lapp<-lapply(split,function(chunk)
-{ chunk[which.max(rowMeans(chunk[,-ncol(chunk)])), ]} 
-)
-length(lapp)  #20174
-data_mass_exp_log2_uniq_df <- NULL
-data_mass_exp_log2_uniq_df<-do.call(rbind,lapp)
-dim(data_mass_exp_log2_uniq_df)
-data_mass_exp_log2_uniq_df[1:5,1:5]
-rownames(data_mass_exp_log2_uniq_df)
-rownames(split$A2M)
-data_mass_exp_log2_uniq_df[1:3, ncol(data_mass_exp_log2_uniq_df)]
-
-#omit the last column which is the gene names from ..._uniq_df and omit rownames as well from features_df
-all_uniq_genes <- data_mass_exp_log2_uniq_df$all_genesymbol
-data_mass_exp_log2_uniq_df <- data_mass_exp_log2_uniq_df[, -ncol(data_mass_exp_log2_uniq_df)]
-tail( colnames(data_mass_exp_log2_uniq_df), n=1)  #the last element of a vector
-
-features_df <- data_mass_exp_log2_uniq_df[, -ncol(data_mass_exp_log2_uniq_df)]
-features_df[1:5, 1:5]
-
-rownames(features_df) <- NULL
-colnames(features_df) <- NULL
-features_df[1:5, 1:5]
-dim(features_df)
-
-dim(data_mass_exp_log2_uniq_df)
-sum(rownames(data_mass_exp_log2_uniq_df) %in% all_uniq_genes)
-colnames(data_mass_exp_log2_uniq_df)
-
-#export
-write.csv(data_mass_exp_log2_uniq_df,
-          "/Users/saman/Dropbox/systems_biology_projects/pso_cmm/data/data_mass_exp_log2_uniq.csv")
-write.csv(all_uniq_genes,
-          "/Users/saman/Dropbox/systems_biology_projects/pso_cmm/data/gene_names.csv")
-write.csv(features_df,"/Users/saman/Dropbox/systems_biology_projects/pso_cmm/data/features.csv")
-write.csv(colnames(data_mass_exp_log2_uniq_df),
-          "/Users/saman/Dropbox/systems_biology_projects/pso_cmm/data/sample_names.csv")
-
-
-BiocManager::install("minet")
-
-# read rs1 expression data
-data_mass_exp_log2_uniq_df <- 
-  read.csv( "/mnt/4tb/Dropbox/systems_biology_projects/pso_cmm/data/data_mass_exp_log2_uniq.csv")
-all_uniq_genes <- read.csv( "/Users/saman/Dropbox/systems_biology_projects/pso_cmm/data/gene_names.csv")
-features_df <- read.csv("/Users/saman/Dropbox/systems_biology_projects/pso_cmm/data/features.csv", header = FALSE)
-sample_names <- read.csv( "/Users/saman/Dropbox/systems_biology_projects/pso_cmm/data/sample_names.csv")
-
-## Based on rs1, separate D and N data
-########################
-data_mass_exp_log2_uniq_df[1:5, 1:5]
-rownames(data_mass_exp_log2_uniq_df)
-
-N <- data_mass_exp_log2_uniq_df[,grepl("NL", colnames(data_mass_exp_log2_uniq_df))]
-D <- data_mass_exp_log2_uniq_df[,grepl("LS", colnames(data_mass_exp_log2_uniq_df))]
-dim(N)  # 20174  86
-dim(D)  # 20174  86
-
-rownames(N) <- data_mass_exp_log2_uniq_df$X
-rownames(D) <- data_mass_exp_log2_uniq_df$X
-
-#highest genes for N
-N$means <- rowMeans(N)
-sort(rowMeans(N), decreasing = TRUE, index.return=T)$ix #the first index returne = 199
-rowMeans(N)[199] #14.08098 , which is the largest mean among genes means
-
-N_sorted <- N[match(sort(rowMeans(N), decreasing=T), N$means),]
-rowMeans(N_sorted)
-rownames(N_sorted)
-#rownames(N_sorted) <- 1:nrow(N_sorted)
-#rownames(N_sorted) 
-N_800_lst <- rownames(N_sorted)[1:800]
-N_800_lst
-
-#highest genes for D
-D$means <- rowMeans(D)
-dim(D)
-rownames(D)
-sort(rowMeans(D), decreasing = TRUE, index.return=T)$ix #the first index returned = 16758
-rowMeans(D)[16758] #14.12 , which is the largest mean among genes means of D
-
-D_sorted <- D[match(sort(rowMeans(D), decreasing=T), D$means),]
-D_sorted[1:5, 1:5]
-D_sorted$means  # 14.12 is also the highest
-rowMeans(D_sorted) # 14.12 is also the top
-#rownames(N_sorted) <- 1:nrow(N_sorted)
-#rownames(N_sorted) 
-D_800_lst <- rownames(D_sorted)[1:800]
-D_800_lst
-
-
-# intersectional and uniq lists of N and D
-N_D_lst <- c(N_800_lst, D_800_lst)
-length(N_D_lst) #1600
-inter_lst <- intersect(N_800_lst, D_800_lst)
-inter_lst #651
-sum(N_D_lst %in% inter_lst)
-sum(!(N_D_lst %in% inter_lst))
-
-uniq_N_D_exclu_lst <- N_D_lst[!(N_D_lst %in% inter_lst)]
-length(uniq_N_D_exclu_lst)  #298
-
-length(unique(old_2000_lst)) # 2000
-
-uniq_N_D_lst <- unique(N_D_lst)
-length(uniq_N_D_lst) # 949
-
-
-length(unique(c(uniq_N_D_lst, old_2000_lst))) #2827
-tot_lst <- unique(c(uniq_N_D_lst, old_2000_lst))
-tot_lst
-
-# MINET datasets:
-
-#Normal
-mi_N <- NULL
-mi_N <- N_sorted[tot_lst, -ncol(N_sorted)]
-
-for (c in colnames(mi_N)[1:3]) {
-  mi_N[,c] <- round(mi_N[,c], digits = 2)
-  #print(round(mi_N[1:5, c], digits = 2))
-}
-
-colnames(mi_N)
-rownames(mi_N)
-class(mi_N)  # data.frame
-mi_N[1:5, 1:5]
-dim(mi_N) # 2819  85
-
-# the missing values had no gene name
-missing_values_df <- as.data.frame(which(is.na(mi_N), arr.ind = TRUE))
-missing_values_df[1:20, 1:2]
-missing_genes <- unique(missing_values_df$row)
-missing_genes
-mi_N[missing_genes,1:3]
-mi_N[1405,]
-dim(missing_values_df)
-mi_N <- na.omit(mi_N)
-
-
-
-mi_N_t <- as.data.frame(t(mi_N))
-dim(mi_N_t)  #85 2819
-
-
-
-
-
-
-
-
-#Diseased
-mi_D <- D_sorted[tot_lst, -ncol(D_sorted)]
-mi_D <- t(mi_D)
-dim(mi_D)  #85 2223
-mi_D
-
-######################
-## run minet with discretization none and estimator spearman
-library(minet)
-#BiocManager::install("Rgraphviz")
-#library(Rgraphviz)
-
-net_N <- minet(mi_N_t) #, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_N)) 
-#plot( as(net_N ,"graphNEL") )
-net_N[1:5, 1:5]
-colnames(net_N[1:5, 1:5])
-rownames(net_N[1:5,1:5])
-dim(net_N) #2819  2819
-class(net_N)  # matrix array
-net_N != 0
-net_N["ACTB", 2]
-#test
-comb <- t(combn(colnames(net_N[1:5,1:5]), 2))
-data.frame(comb, mi=net_N[comb])
-net_N[which(net_N !=0, arr.ind = TRUE) ]
-net_N_lower <- lower.tri(net_N[1:5,1:5], diag = FALSE)
-net_N_lower
-net_N_lower <- net_N[1:5,1:5][net_N_lower]
-net_N_lower
-net_N_lower[which(net_N_lower != 0, arr.ind = TRUE)]
-
-
-#net_N_lower
-net_N_lower <- lower.tri(net_N, diag = FALSE)
-net_N_lower <- net_N[net_N_lower]
-net_N_lower
-net_N_lower <- net_N_lower[which(net_N_lower != 0, arr.ind = TRUE)]
-length(net_N_lower[net_N_lower > 0.2]) #975
-length(net_N_lower[net_N_lower > 0.1]) #2786
-length(net_N_lower[net_N_lower > 0.05]) #31187
-hist(net_N_lower[net_N_lower > 0.1])
-
-trace(minet, edit = TRUE)
-
-###########################
-#run with discretization equalfreq and estimator mi.empirical
-net_N_emp <- minet(mi_N_t, disc = "equalfreq", estimator = "mi.empirical") 
-#, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_N)) 
-#plot( as(net_N_emp ,"graphNEL") )
-net_N_emp[1:5, 1:5]
-colnames(net_N_emp[1:5, 1:5])
-rownames(net_N_emp[1:5,1:5])
-dim(net_N_emp) #2819  2819
-class(net_N_emp)  # matrix array
-net_N_emp != 0
-net_N_emp["ACTB", 2]
-#test
-comb <- t(combn(colnames(net_N_emp[1:5,1:5]), 2))
-data.frame(comb, mi=net_N_emp[comb])
-net_N_emp[which(net_N_emp !=0, arr.ind = TRUE) ]
-net_N_emp_lower <- lower.tri(net_N_emp[1:5,1:5], diag = FALSE)
-net_N_emp_lower
-net_N_emp_lower <- net_N_emp[1:5,1:5][net_N_emp_lower]
-net_N_emp_lower
-net_N_emp_lower[which(net_N_emp_lower != 0, arr.ind = TRUE)]
-
-
-#net_N_emp_lower
-net_N_emp_lower <- lower.tri(net_N_emp, diag = FALSE)
-net_N_emp_lower <- net_N_emp[net_N_emp_lower]
-net_N_emp_lower
-net_N_emp_lower <- net_N_emp_lower[which(net_N_emp_lower != 0, arr.ind = TRUE)]
-length(net_N_emp_lower[net_N_emp_lower > 0.2]) #2817
-length(net_N_emp_lower[net_N_emp_lower > 0.1]) #35930
-length(net_N_emp_lower[net_N_emp_lower > 0.05]) #447198
-hist(net_N_emp_lower[net_N_emp_lower > 0.2])
-
-#########################################################################
-##minet with discretization equalfreq and estimator mi.mm
-net_N_mm <- minet(mi_N_t, disc = "equalfreq", estimator = "mi.mm") 
-#, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_N)) 
-#plot( as(net_N_mm ,"graphNEL") )
-net_N_mm[1:5, 1:5]
-colnames(net_N_mm[1:5, 1:5])
-rownames(net_N_mm[1:5,1:5])
-dim(net_N_mm) #2819  2819
-class(net_N_mm)  # matrix array
-net_N_mm != 0
-net_N_mm["ACTB", 2]
-#test
-comb <- t(combn(colnames(net_N_mm[1:5,1:5]), 2))
-data.frame(comb, mi=net_N_mm[comb])
-net_N_mm[which(net_N_mm !=0, arr.ind = TRUE) ]
-net_N_mm_lower <- lower.tri(net_N_mm[1:5,1:5], diag = FALSE)
-net_N_mm_lower
-net_N_mm_lower <- net_N_mm[1:5,1:5][net_N_mm_lower]
-net_N_mm_lower
-net_N_mm_lower[which(net_N_mm_lower != 0, arr.ind = TRUE)]
-
-
-#net_N_mm_lower
-net_N_mm_lower <- lower.tri(net_N_mm, diag = FALSE)
-net_N_mm_lower <- net_N_mm[net_N_mm_lower]
-net_N_mm_lower
-net_N_mm_lower <- net_N_mm_lower[which(net_N_mm_lower != 0, arr.ind = TRUE)]
-length(net_N_mm_lower[net_N_mm_lower > 0.2]) #5785
-length(net_N_mm_lower[net_N_mm_lower > 0.1]) #107415
-length(net_N_mm_lower[net_N_mm_lower > 0.05]) #692748
-hist(net_N_mm_lower[net_N_mm_lower > 0.2])
-
-
-
-
-############################################
-## Using new expression data based on GEO2R 
-#############################################
-## separate D and N data
-########################
 ex[1:5, 1:5]
 dim(ex)
-colnames(ex)[grep("N", colnames(ex))]
-sum(grepl("NA",ex$geneSymbol))
-ex$geneSymbol[grepl("NA", ex$geneSymbol)] #super dangerous, gets all the genes with letters "NA" as well
-ex$geneSymbol[1:10]
-ex$geneSymbol[!is.na(ex$geneSymbol)][1:10]
-!is.na(ex$geneSymbol)[1:10]
+#colnames(ex)[grep("N", colnames(ex))]
+#ex$geneSymbol[grepl("NA", ex$geneSymbol)] #logical error, gets all the genes with letters "NA" as well
+#ex$geneSymbol[!is.na(ex$geneSymbol)][1:10]
 ex <- ex[!is.na(ex$geneSymbol),]
-ex$geneSymbol[1:10]
 
 N <- ex[,grepl("N", colnames(ex))]
 D <- ex[,grepl("L", colnames(ex))]
-dim(N)  # 41905  85
-dim(D)  # 41905  85
+dim(N)  # 43145  85
+dim(D)  # 43145  85
 
 N$probe <- ex$probe
 D$probe <- ex$probe
@@ -669,70 +317,59 @@ N$geneSymbol <- ex$geneSymbol
 D$geneSymbol <- ex$geneSymbol
 
 #highest genes for N
-colnames(N[1:86])
+colnames(N[1:87])
 N$means <- rowMeans(N[1:85])
-sort(rowMeans(N[,1:85]), decreasing = TRUE, index.return=T)$ix #the first index of sorted means vector returned = 6819, 
+sort(rowMeans(N[,1:85]), decreasing = TRUE, index.return=T)$ix[1:10] #the first index of sorted means vector returned = 7087, 
 #$x returns only the values when there's no rowname
-rowMeans(N[1:85])[6819] #15.61 , which is the largest mean among genes means
-N[which(N[,"means"] == 15.61800), "means"]  #it doesn't work if you don't write the full digits of the value 
+rowMeans(N[1:85])[7087] #15.61 , for probeID: 200092_s_at which is the largest mean among genes means
+N[which(round(N[,"means"], digits = 1) == 15.6), "means"]  #it doesn't work if you don't write the full digits of the value 
 
-match(sort(rowMeans(N[,1:85]), decreasing=T), N$means)
-match(sort(N$means, decreasing = T), N$means)
+
+match(sort(N$means, decreasing = TRUE), N$means)
+order(N$means, decreasing = TRUE)
 N_sorted <- N[match(sort(rowMeans(N[,1:85]), decreasing=T), N$means),]
-rowMeans(N_sorted[,1:85])
-rownames(N_sorted)
-#rownames(N_sorted) <- NULL
-class(rownames(N_sorted) ) #character
-N_1000_lst <- N_sorted$probe[1:1000]
-N_1000_lst
+N_500_lst <- N_sorted$probe[1:500]
+N_500_lst
 
 #highest genes for D
-dim(D)
+dim(D) # 43145  87
 colnames(D)
 D$means <- rowMeans(D[1:85])
-sort(rowMeans(D[,1:85]), decreasing = TRUE, index.return=T)$ix #the first index of sorted means vector returned = 6819, 
+sort(rowMeans(D[,1:85]), decreasing = TRUE, index.return=T)$ix[1:10] #the first index of sorted means vector returned = 6819, 
 #$x returns only the values when there's no rowname
-rowMeans(D[1:85])[6819] #15.565 , which is the largest mean among genes means
-D[which(round(D[,"means"], digits = 2) == 15.57), "means"]  #it doesn't work if you don't write the full digits of the value 
-D["200092_s_at","means"]
+rowMeans(D[1:85])[7087] #15.565  for probeID: 200092_s_at , which is the largest mean among genes means
+which(round(D[,"means"], digits = 2) == 15.57)  #it doesn't work if you don't write the full digits of the value 
 
-match(sort(rowMeans(D[,1:85]), decreasing=T), D$means)
-match(sort(D$means, decreasing = T), D$means)
-D_sorted <- D[match(sort(rowMeans(D[,1:85]), decreasing=T), D$means),]
+D_sorted <- D[order(D$means, decreasing = TRUE),]
 rowMeans(D_sorted[,1:85])
 rownames(D_sorted)
 #rownames(N_sorted) <- NULL
 class(rownames(D_sorted) ) #character
-D_1000_lst <- D_sorted$probe[1:1000]
-D_1000_lst
+D_500_lst <- D_sorted$probe[1:500]
+D_500_lst
 
-###########################################
+
 # intersectional and uniq lists of N and D
-N_D_lst <- c(N_1000_lst, D_1000_lst)
-length(N_D_lst) #1600
-inter_lst <- intersect(N_800_lst, D_800_lst)
-inter_lst #651
-sum(N_D_lst %in% inter_lst)
-sum(!(N_D_lst %in% inter_lst))
+N_D_lst <- c(N_500_lst, D_500_lst)
+length(N_D_lst) #1000
 
-uniq_N_D_exclu_lst <- N_D_lst[!(N_D_lst %in% inter_lst)]
-length(uniq_N_D_exclu_lst)  #298
-
-length(unique(old_2000_lst)) # 2000
-
-uniq_N_D_lst <- unique(N_D_lst)  #top 2000 highly expressed 
-length(uniq_N_D_lst) # 1152
+#uniq_N_D_exclu_lst <- N_D_lst[!(N_D_lst %in% inter_lst)]
+#length(uniq_N_D_exclu_lst)  
 
 
-tot_lst_5000 <- unique(c(uniq_N_D_lst, new3000_ids))
-length(tot_lst_5000) # 4087
-##################
-## MINET datasets:
+uniq_N_D_lst <- unique(N_D_lst)  #top 1000 highly expressed 
+length(uniq_N_D_lst) # 577
+
+
+tot_lst <- unique(c(uniq_N_D_lst, new2000_u_id))
+length(tot_lst) # 2554
+
+## MINET datasets----
 
 #Normal
 mi_N <- NULL
 colnames(N_sorted)[1:85]
-mi_N <- N_sorted[tot_lst_5000,1:85]
+mi_N <- N_sorted[total_lst,1:85]
 
 # for (c in colnames(mi_N)[1:3]) {
 #   mi_N[,c] <- round(mi_N[,c], digits = 2)
@@ -780,7 +417,7 @@ dim(mi_N_t)  #85 2819
 #Diseased
 mi_D <- NULL
 colnames(D_sorted)[1:85]
-mi_D <- D_sorted[tot_lst_5000,1:85]
+mi_D <- D_sorted[total_lst,1:85]
 
 colnames(mi_D)
 rownames(mi_D)
@@ -812,14 +449,14 @@ dim(mi_D)  #3681 85
 mi_D_t <- as.data.frame(t(mi_D))
 dim(mi_D_t)  #85 3681
 
-######################################
+
 ##run minet with different parameters
-#####################################
+
 
 library(minet)
 #BiocManager::install("Rgraphviz")
 #library(Rgraphviz)
-########
+
 ##Normal
 
 ####
@@ -965,7 +602,7 @@ length(net_N_mm_lower[net_N_mm_lower > 0.1]) #161355
 length(net_N_mm_lower[net_N_mm_lower > 0.05]) #1126287
 hist(net_N_mm_lower[net_N_mm_lower > 0.2])
 
-###########
+
 ##Diseased
 
 #run minet with discretization none and estimator spearman
@@ -1118,9 +755,9 @@ save.image("mi.RData")
 load("mi.RData")
 
 
-######################################################################################
-##Using rGraph
-#############
+
+# Using rGraph ----
+
 
 #install.packages('igraph')
 #install.packages('DirectedClustering')
@@ -1149,7 +786,7 @@ makeGraph <- function(graph){
 }
 
 
-# READ AND ANALYZE NETS----
+### READ AND ANALYZE NETS----
 
 path = "/Users/saman/Dropbox/systems_biology_projects/pso_cmm/data/"
 
