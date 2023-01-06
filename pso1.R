@@ -3,7 +3,12 @@ setwd("/Users/saman/Dropbox/systems_biology_projects/pso_cmm/")
 setwd("~/git/psoriasis1/")
 
 
+
 setRepositories()
+
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install()
 
 if (!require("BiocManager"))
   install.packages("BiocManager")
@@ -20,13 +25,19 @@ if(!require("Biobase"))
 BiocManager::install("affy")
 BiocManager::install("GEOquery")
 BiocManager::install("limma")
-#BiocManager::install("gcrma")
-BiocManager::install("simpleaffy")
+
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("impute")
+
+BiocManager::install("minet")
 BiocManager::install("hgu133plus2.db")
 BiocManager::install("Vennerable")
-
+install.packages("")
 
 library(pheatmap) #
+library(impute)
 library(affy)  
 library(ggplot2) #
 library(limma) #
@@ -42,6 +53,7 @@ library(annotate) #
 library(AnnotationDbi) #
 library(hgu133plus2cdf) #
 library("hgu133plus2.db") #
+library(minet)
 
 # Based on workshop ----
 
@@ -71,7 +83,7 @@ gset[1]  #the name of platform in Annotation line: GPL570
 gset <- gset[idx]
 typeof(gset) #still a list
 gset <- gset[[idx]]
-View(gset)
+
 class(gset) #"ExpressionSet"
 typeof(gset) # S4
 #gr <- c(rep("N", 85), rep("L", 85))
@@ -327,7 +339,7 @@ N[which(round(N[,"means"], digits = 1) == 15.6), "means"]  #it doesn't work if y
 
 match(sort(N$means, decreasing = TRUE), N$means)
 order(N$means, decreasing = TRUE)
-N_sorted <- N[match(sort(rowMeans(N[,1:85]), decreasing=T), N$means),]
+N_sorted <- N[match(sort(rowMeans(N[,1:85]), decreasing=T), N$means),]   
 N_500_lst <- N_sorted$probe[1:500]
 N_500_lst
 
@@ -361,8 +373,8 @@ uniq_N_D_lst <- unique(N_D_lst)  #top 1000 highly expressed
 length(uniq_N_D_lst) # 577
 
 
-tot_lst <- unique(c(uniq_N_D_lst, new2000_u_id))
-length(tot_lst) # 2554
+total_lst <- unique(c(uniq_N_D_lst, new2000_u_id))
+length(total_lst) # 2554
 
 ## MINET datasets----
 
@@ -377,41 +389,35 @@ mi_N <- N_sorted[total_lst,1:85]
 # }
 
 colnames(mi_N)
-rownames(mi_N)
+dim(mi_N)
 class(mi_N)  # data.frame
-mi_N[1:5, 1:5]
-dim(mi_N) # 2819  85
+dim(mi_N) # 2554  85
 
-# the missing values had no gene name
-which(is.na(mi_N), arr.ind = TRUE)
-missing_values_df <- as.data.frame(which(is.na(mi_N), arr.ind = TRUE))
-missing_values_df[1:20, 1:2]
-missing_genes_rowidx <- unique(missing_values_df$row)
-missing_genes_rowidx
-length(missing_genes_rowidx)
-mi_N[missing_genes,1:15]
-mi_N[966,]
-dim(mi_N) #4087 85
-dim(mi_N[-missing_genes_rowidx,])  #3687 85
-dim(na.omit(mi_N))                 #3687 85
+# dummy dataset for imputation
+mi_N_imp <- mi_N[521:532, 1:5]
+mi_N_imp[1,1] <- NA
+grepl("NA", rownames(mi_N_imp))
+is.na(rownames(mi_N[521:532, 1:5]))  #in this dataset NAs are Character
+mi_N_imp <- mi_N_imp[!grepl("NA", rownames(mi_N_imp)),]
+#na.omit(mi_N_imp) #omits rows with any number of missing values on columns specified, default: all
+mi_N_imp <- impute.knn(as.matrix(mi_N_imp) ,k = 10, rowmax = 0.5, colmax = 0.8, maxp = 1500, rng.seed=362436069)
+mi_N_imp <- mi_N_imp$data
 
-mi_N[-missing_genes_rowidx,][1:10, 1:10]
-na.omit(mi_N)[1:10,1:10]
-
-mi_N[-missing_genes_rowidx,][966,]
-na.omit(mi_N)[966,]
-
-mi_N <- mi_N[-missing_genes_rowidx,]
-dim(mi_N)  #3687 85
-
-mi_N_t <- as.data.frame(t(mi_N))
-dim(mi_N_t)  #85 2819
+#imputation
+mi_N_imp <- mi_N
+dim(mi_N_imp)
+grepl("NA", rownames(mi_N_imp))
+is.na(rownames(mi_N))  #in this dataset NAs are Character
+mi_N_imp <- mi_N_imp[!grepl("NA", rownames(mi_N_imp)),]
+#na.omit(mi_N_imp) #omits rows with any number of missing values on columns specified, default: all
+mi_N_imp <- impute.knn(as.matrix(mi_N_imp) ,k = 10, rowmax = 0.5, colmax = 0.8, maxp = 1500, rng.seed=362436069)
+mi_N_imp <- mi_N_imp$data
+sum(is.na(mi_N_imp)) #0
+sum(is.na(mi_N)) #6035
 
 
-
-
-
-
+mi_N_imp_t <- as.data.frame(t(mi_N_imp))
+dim(mi_N_imp_t)  #85 2819
 
 
 #Diseased
@@ -423,94 +429,126 @@ colnames(mi_D)
 rownames(mi_D)
 class(mi_D)  # data.frame
 mi_D[1:5, 1:5]
-dim(mi_D) # 4087  85
+dim(mi_D) # 2554  85
 
 # the missing values had no gene name
-which(is.na(mi_D), arr.ind = TRUE)
-missing_values_df <- as.data.frame(which(is.na(mi_D), arr.ind = TRUE))
-missing_values_df[1:20, 1:2]
-missing_genes_rowidx <- unique(missing_values_df$row)
-missing_genes_rowidx
-length(missing_genes_rowidx)
-mi_D[79,]
-dim(mi_D) #4087 85
-dim(mi_D[-missing_genes_rowidx,])  #3681 85
-dim(na.omit(mi_D))                 #3681 85
+# which(is.na(mi_D), arr.ind = TRUE)
+# missing_values_df <- as.data.frame(which(is.na(mi_D), arr.ind = TRUE))
+# missing_values_df[1:20, 1:2]
+# missing_genes_rowidx <- unique(missing_values_df$row)
+# missing_genes_rowidx
+# length(missing_genes_rowidx)
+# mi_D[79,]
+# dim(mi_D) #4087 85
+# dim(mi_D[-missing_genes_rowidx,])  #3681 85
+# dim(na.omit(mi_D))                 #3681 85
+# 
+# mi_D[-missing_genes_rowidx,][1:10, 1:10]
+# na.omit(mi_D)[1:10,1:10]
+# 
+# mi_D[-missing_genes_rowidx,][79,]
+# na.omit(mi_D)[79,]
+# 
+# mi_D <- mi_D[-missing_genes_rowidx,]
+# dim(mi_D)  #3681 85
+# 
+# mi_D_t <- as.data.frame(t(mi_D))
+# dim(mi_D_t)  #85 3681
 
-mi_D[-missing_genes_rowidx,][1:10, 1:10]
-na.omit(mi_D)[1:10,1:10]
-
-mi_D[-missing_genes_rowidx,][79,]
-na.omit(mi_D)[79,]
-
-mi_D <- mi_D[-missing_genes_rowidx,]
-dim(mi_D)  #3681 85
-
-mi_D_t <- as.data.frame(t(mi_D))
-dim(mi_D_t)  #85 3681
-
-
-##run minet with different parameters
+#imputation
+mi_D_imp <- mi_D
+dim(mi_D_imp)
+grepl("NA", rownames(mi_D_imp))
+is.na(rownames(mi_D))  #in this dataset NAs are Character
+mi_D_imp <- mi_D_imp[!grepl("NA", rownames(mi_D_imp)),]
+#na.omit(mi_N_imp) #omits rows with any number of missing values on columns specified, default: all
+mi_D_imp <- impute.knn(as.matrix(mi_D_imp) ,k = 10, rowmax = 0.5, colmax = 0.8, maxp = 1500, rng.seed=362436069)
+mi_D_imp <- mi_D_imp$data
+sum(is.na(mi_D_imp)) #0
+sum(is.na(mi_D)) 
+dim(mi_D_imp)
+as.data.frame(t(mi_D_imp))[1:5, 1:5]
+mi_D_imp_t <- as.data.frame(t(mi_D_imp))
+dim(mi_D_imp_t)
+rownames(mi_D_imp_t)
+# Run minet with different parameters ----
+#input to minet: data.frame where columns contain variables/features
+#and rows contain outcomes/samples.
 
 
 library(minet)
 #BiocManager::install("Rgraphviz")
 #library(Rgraphviz)
 
-##Normal
+# Normal ----
 
 ####
 ##run minet with discretization none and estimator spearman
-net_N <- minet(mi_N_t) #, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_N)) 
+net_N <- minet(mi_N_imp_t) #, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_N)) 
 
-#plot( as(net_N ,"graphNEL") )
-net_N[1:5, 1:5]
-colnames(net_N[1:5, 1:5])
-rownames(net_N[1:5,1:5])
-dim(net_N) 
-class(net_N)  # matrix array
-net_N != 0
-net_N["200092_s_at", 2]
-#test
-comb <- t(combn(colnames(net_N[1:5,1:5]), 2))
-comb
-class(comb) #matrix array
-as.data.frame(comb, mi=net_N[comb])
-net_N[which(net_N !=0, arr.ind = TRUE) ]
-net_N_lower <- lower.tri(net_N[1:5,1:5], diag = FALSE)
-net_N_lower
-net_N_lower <- net_N[1:5,1:5][net_N_lower]
-net_N_lower
-net_N_lower[which(net_N_lower != 0, arr.ind = TRUE)]
+# plot( as(net_N ,"graphNEL") )
+# net_N[1:5, 1:5]
+# colnames(net_N[1:5, 1:5])
+# rownames(net_N[1:5,1:5])
+# dim(net_N) 
+# class(net_N)  # matrix array
+# net_N != 0
+# net_N["200092_s_at", 2]
+# #test accomplished on dummy dataset
+# comb <- t(combn(colnames(net_N[1:5,1:5]), 2))
+# comb
+# class(comb) #matrix array          
+# data.frame(comb, mi=net_N[comb])
 
-
-#net_N_lower
-net_N_lower <- lower.tri(net_N, diag = FALSE)
-net_N_lower <- net_N[net_N_lower]
-net_N_lower
-net_N_lower <- net_N_lower[which(net_N_lower != 0, arr.ind = TRUE)]
-length(net_N_lower[net_N_lower > 0.2]) #930
-length(net_N_lower[net_N_lower > 0.1]) #2953
-length(net_N_lower[net_N_lower > 0.05]) #22752
-hist(net_N_lower[net_N_lower > 0.2])
-
-trace(minet, edit = TRUE)
+# net_N[which(net_N[1:5,1:5] !=0, arr.ind = TRUE) ]
+# net_N_lower <- lower.tri(net_N[1:5,1:5], diag = FALSE)
+# class(net_N_lower)
+# net_N_lower <- net_N[1:5,1:5][net_N_lower]
+# net_N_lower
+# net_N_lower[which(net_N_lower != 0, arr.ind = TRUE)]
+# 
+# 
+# #net_N_lower
+# net_N_lower <- lower.tri(net_N, diag = FALSE)
+# net_N_lower <- net_N[net_N_lower]
+# net_N_lower
+# net_N_lower <- net_N_lower[which(net_N_lower != 0, arr.ind = TRUE)]
+# length(net_N_lower[net_N_lower > 0.2]) #930
+# length(net_N_lower[net_N_lower > 0.1]) #2953
+# length(net_N_lower[net_N_lower > 0.05]) #22752
+# hist(net_N_lower[net_N_lower > 0.2])
+# 
+# trace(minet, edit = TRUE)
 
 
 # N_emp ----
 ##run with discretization equalfreq and estimator mi.empirical
-net_N_emp <- minet(mi_N_t, disc = "equalfreq", estimator = "mi.empirical") 
+net_N_emp <- minet(mi_N_imp_t, disc = "equalfreq", estimator = "mi.empirical") 
 net_N_emp <- round(net_N_emp, 2)
 write.csv(net_N_emp,"./data/adjacency_net_N_emp.csv")
 #, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_N)) 
 #plot( as(net_N_emp ,"graphNEL") )
-net_N_emp[1:5, 1:5]
+temp.emp <- net_N_emp[1:5, 1:5]
+temp.emp
+ind_mx <- which(temp.emp != 0,arr.ind = TRUE)
+ind_mx
+rownames(ind_mx)
+ind_mx[,1]
+ind_mx[,2]
+temp.emp[ind_mx[,1], ind_mx[,2]]
+temp.emp[ind_mx]
+
+
+class(which(temp.emp == 0,arr.ind = TRUE)) # matrix array
+temp.emp[which(temp.emp == 0, arr.ind=TRUE)]
 colnames(net_N_emp[1:5, 1:5])
 rownames(net_N_emp[1:5,1:5])
-dim(net_N_emp) #3687  3687
+net_N_emp[1:5,1:5]
+dim(net_N_emp) # 2483 2483
 class(net_N_emp)  # matrix array
-net_N_emp != 0
-net_N_emp["224500_s_at", 2]
+length( sum(net_N_emp == 0))
+net_N_emp[net_N_emp == 0]
+
 
 # create edgelist
 # comb <- t(combn(colnames(net_N_emp[1:5,1:5]), 2))
@@ -518,56 +556,57 @@ net_N_emp["224500_s_at", 2]
 comb_N_emp <- t(combn(colnames(net_N_emp), 2))
 head(comb_N_emp)
 el_mi_N_emp <- data.frame(comb_N_emp, mi=net_N_emp[comb_N_emp])
-length(el_mi_N_emp$mi[el_mi_N_emp$mi > 0.2])  #3372
+length(el_mi_N_emp$mi[el_mi_N_emp$mi > 0.2])  #2267
 el_mi_N_emp_2 <- el_mi_N_emp[el_mi_N_emp$mi >0.2,]
 el_mi_N_emp_2$mi <- round(el_mi_N_emp_2$mi, 2)
 
 #save mi>0.2 csv
-write.csv(el_mi_N_emp_2, "./data/el_mi_N_emp_2.csv")
+write.csv(el_mi_N_emp_2, "./el_mi_N_emp_2.csv")
 
 ##create 4.0
-el_mi_N_emp_4 <- el_mi_N_emp[el_mi_N_emp$mi >0.4,]
-el_mi_N_emp_4$mi <- round(el_mi_N_emp_4$mi, 2)
-#save mi>0.4 csv
-write.csv(el_mi_N_emp_4, "./data/el_mi_N_emp_4.csv")
+# el_mi_N_emp_4 <- el_mi_N_emp[el_mi_N_emp$mi >0.4,]
+# el_mi_N_emp_4$mi <- round(el_mi_N_emp_4$mi, 2)
+# #save mi>0.4 csv
+# write.csv(el_mi_N_emp_4, "./data/el_mi_N_emp_4.csv")
 
 
 ## unuique genes of MI > 0.4 
-uniq_N_4 <- c(unique(el_mi_N_emp_4$X1), unique(el_mi_N_emp_4$X2))
-length(uniq_N_4) #4352
-length(unique(uniq_N_4)) #3640  ?? why?! the combination should've omitted 
-uniq_N_4 <- unique(uniq_N_4)
-length(uniq_N_4) #3640
-# 
+uniq_N_2<- c(unique(el_mi_N_emp_2$X1), unique(el_mi_N_emp_2$X2))
+length(uniq_N_2) #3022
+length(unique(uniq_N_2)) #2483  
+uniq_N_2 <- unique(uniq_N_2)
 
 
 
 #adjacency matrix of mi>0.2
 net_N_emp_2 <- net_N_emp[colnames(net_N_emp) %in% uniq_N_2, rownames(net_N_emp) %in% uniq_N_2]
 net_N_emp_2 <- round(net_N_emp_2, 2)
-dim(net_N_emp_2)
+dim(net_N_emp_2) #2483 2483
 net_N_emp_2[1:5, 1:5]
-write.csv(net_N_emp_2, "./data/net_N_emp_2.csv")
-write.csv(net_N_emp_2[1:200,1:200], "./data/test_net_N_emp_2.csv")
+write.csv(net_N_emp_2, "./net_N_emp_2.csv")
+#write.csv(net_N_emp_2[1:200,1:200], "./data/test_net_N_emp_2.csv")
 
 
-net_N_emp[which(net_N_emp !=0, arr.ind = TRUE) ]
-net_N_emp_lower <- lower.tri(net_N_emp[1:5,1:5], diag = FALSE)
-net_N_emp_lower
-net_N_emp_lower <- net_N_emp[1:5,1:5][net_N_emp_lower]
-net_N_emp_lower
-net_N_emp_lower[which(net_N_emp_lower != 0, arr.ind = TRUE)]
+# net_N_emp[which(net_N_emp !=0, arr.ind = TRUE) ]
+# net_N_emp_lower <- lower.tri(net_N_emp[1:5,1:5], diag = FALSE)
+# net_N_emp_lower
+# net_N_emp_lower <- net_N_emp[1:5,1:5][net_N_emp_lower]
+# net_N_emp_lower
+# net_N_emp_lower[which(net_N_emp_lower != 0, arr.ind = TRUE)]
 
 
 #net_N_emp_lower
-net_N_emp_lower <- lower.tri(net_N_emp, diag = FALSE)
-net_N_emp_lower <- net_N_emp[net_N_emp_lower]
-net_N_emp_lower
-net_N_emp_lower <- net_N_emp_lower[which(net_N_emp_lower != 0, arr.ind = TRUE)]
-length(net_N_emp_lower[net_N_emp_lower > 0.2]) #3372
+net_N_emp_lower2 <- lower.tri(net_N_emp_2, diag = FALSE)
+class(net_N_emp_lower2) # marix array
+dim(net_N_emp_lower2) #2483 2483
+net_N_emp_lower2[1:5, 1:5]
+net_N_emp_2 <- net_N_emp_2[net_N_emp_lower2]
+length(net_N_emp_2)
+#net_N_emp_lower2 <- net_N_emp_lower2[which(net_N_emp_lower2 != 0, arr.ind = TRUE)]
+length(net_N_emp_2[net_N_emp_2 > 0.2]) #2267
 length(net_N_emp_lower[net_N_emp_lower > 0.1]) #52592
 length(net_N_emp_lower[net_N_emp_lower > 0.05]) #728373
-hist(net_N_emp_lower[net_N_emp_lower > 0.2])
+hist(net_N_emp_2[net_N_emp_2 > 0.2])
 
 ####
 ##minet with discretization equalfreq and estimator mi.mm
@@ -603,150 +642,93 @@ length(net_N_mm_lower[net_N_mm_lower > 0.05]) #1126287
 hist(net_N_mm_lower[net_N_mm_lower > 0.2])
 
 
-##Diseased
+# Diseased ----
 
-#run minet with discretization none and estimator spearman
-net_D <- minet(mi_D_t) #, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_D)) 
-
-#plot( as(net_D ,"graphDEL") )
-net_D[1:5, 1:5]
-colnames(net_D[1:5, 1:5])
-rownames(net_D[1:5,1:5])
-dim(net_D) #2819  2819
-class(net_D)  # matrix array
-net_D != 0
-net_D["200092_s_at", 2]
-#test
-comb <- t(combn(colnames(net_D[1:5,1:5]), 2))
-class(comb) #matrix array
-as.data.frame(comb, mi=net_D[comb])
-net_D[which(net_D !=0, arr.ind = TRUE) ]
-net_D_lower <- lower.tri(net_D[1:5,1:5], diag = FALSE)
-net_D_lower
-net_D_lower <- net_D[1:5,1:5][net_D_lower]
-net_D_lower
-net_D_lower[which(net_D_lower != 0, arr.ind = TRUE)]
-
-
-#net_D_lower
-net_D_lower <- lower.tri(net_D, diag = FALSE)
-net_D_lower <- net_D[net_D_lower]
-net_D_lower
-net_D_lower <- net_D_lower[which(net_D_lower != 0, arr.ind = TRUE)]
-length(net_D_lower[net_D_lower > 0.2]) #1253
-length(net_D_lower[net_D_lower > 0.1]) #3255
-length(net_D_lower[net_D_lower > 0.05]) #35701
-hist(net_D_lower[net_D_lower > 0.2])
-
-trace(minet, edit = TRUE)
-
-# D_emp ----
-#run with discretization equalfreq and estimator mi.empirical
-net_D_emp <- minet(mi_D_t, disc = "equalfreq", estimator = "mi.empirical") 
+# N_emp ----
+##run with discretization equalfreq and estimator mi.empirical
+net_D_emp <- minet(mi_D_imp_t, disc = "equalfreq", estimator = "mi.empirical") 
 net_D_emp <- round(net_D_emp, 2)
-write(net_D_emp,"./data/adjacency_net_D_emp.csv")
-#, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_D)) 
-#plot( as(net_D_emp ,"graphDEL") )
-net_D_emp[1:5, 1:5]
-colnames(net_D_emp[1:5, 1:5])
-rownames(net_D_emp[1:5,1:5])
-dim(net_D_emp) #3681  3681
-class(net_D_emp)  # matrix array
-net_D_emp != 0
-net_D_emp["209220_at", 2]
+write.csv(net_D_emp,"./adjacency_net_D_emp.csv")
+#, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_N)) 
+#plot( as(net_N_emp ,"graphNEL") )
+# temp.emp <- net_N_emp[1:5, 1:5]
+# temp.emp
+# ind_mx <- which(temp.emp != 0,arr.ind = TRUE)
+# ind_mx
+# rownames(ind_mx)
+# ind_mx[,1]
+# ind_mx[,2]
+# temp.emp[ind_mx[,1], ind_mx[,2]]
+# temp.emp[ind_mx]
 
-# teset create edgelist
-comb <- t(combn(colnames(net_D_emp[1:5,1:5]), 2))
-data.frame(comb, mi=net_D_emp[comb])
-net_D_emp[which(net_D_emp !=0, arr.ind = TRUE) ]
-net_D_emp_lower <- lower.tri(net_D_emp[1:5,1:5], diag = FALSE)
-net_D_emp_lower
-net_D_emp_lower <- net_D_emp[1:5,1:5][net_D_emp_lower]
-net_D_emp_lower
-net_D_emp_lower[which(net_D_emp_lower != 0, arr.ind = TRUE)]
 
-#create edge list
+# class(which(temp.emp == 0,arr.ind = TRUE)) # matrix array
+# temp.emp[which(temp.emp == 0, arr.ind=TRUE)]
+# colnames(net_N_emp[1:5, 1:5])
+# rownames(net_N_emp[1:5,1:5])
+# net_N_emp[1:5,1:5]
+# dim(net_N_emp) # 2483 2483
+# class(net_N_emp)  # matrix array
+# length( sum(net_N_emp == 0))
+# net_N_emp[net_N_emp == 0]
+
+
+# create edgelist
+# comb <- t(combn(colnames(net_D_emp[1:5,1:5]), 2))
+# data.frame(comb, mi=net_D_emp[comb])
 comb_D_emp <- t(combn(colnames(net_D_emp), 2))
 head(comb_D_emp)
 el_mi_D_emp <- data.frame(comb_D_emp, mi=net_D_emp[comb_D_emp])
-length(el_mi_D_emp$mi[el_mi_D_emp$mi > 0.2])  #3262
+length(el_mi_D_emp$mi[el_mi_D_emp$mi > 0.2])  #2323
 el_mi_D_emp_2 <- el_mi_D_emp[el_mi_D_emp$mi >0.2,]
 el_mi_D_emp_2$mi <- round(el_mi_D_emp_2$mi, 2)
-#save csv
-write.csv(el_mi_D_emp_2, "./data/el_mi_D_emp_2.csv")
 
-##create 4.0
-el_mi_D_emp_4 <- el_mi_D_emp[el_mi_D_emp$mi >0.4,]
-el_mi_D_emp_4$mi <- round(el_mi_D_emp_4$mi, 2)
-#save mi>0.4 csv
-write.csv(el_mi_D_emp_4, "./data/el_mi_D_emp_4.csv")
+#save mi>0.2 csv
+write.csv(el_mi_D_emp_2, "./el_mi_D_emp_2.csv")
+
+##create > 0.1
+el_mi_N_emp_1 <- el_mi_N_emp[el_mi_N_emp$mi >0.1,]
+el_mi_N_emp_1$mi <- round(el_mi_N_emp_1$mi, 2)
+#save mi>0.1 csv
+write.csv(el_mi_N_emp_1, "./el_mi_N_emp_1.csv")
 
 
-#unuique D genes of MI > 0.4
-comb_tot_D <- c(el_mi_D_emp_4$X1, el_mi_D_emp_4$X2)
-length(unique(comb_tot_D)) #3597
-uniq_D_4 <- c(unique(el_mi_D_emp_4$X1), unique(el_mi_D_emp_4$X2))
-class(uniq_D_4)
-length(uniq_D_4) #4349
-uniq_D_4 <- (unique(uniq_D_4)) 
-length(uniq_D_4)#3597  
+## Disease unuique genes of MI > 0.2 
+uniq_D_2<- c(unique(el_mi_D_emp_2$X1), unique(el_mi_D_emp_2$X2))
+length(uniq_D_2) #3165
+length(unique(uniq_D_2)) #2554
+uniq_D_2 <- unique(uniq_D_2)
+
+
 
 #adjacency matrix of mi>0.2
 net_D_emp_2 <- net_D_emp[colnames(net_D_emp) %in% uniq_D_2, rownames(net_D_emp) %in% uniq_D_2]
-dim(net_D_emp_2)
 net_D_emp_2 <- round(net_D_emp_2, 2)
-net_D_emp_2[1:5,1:5]
-write.csv(net_D_emp_2, "./data/net_D_emp_2.csv")
+dim(net_D_emp_2) #2554 2554
+net_D_emp_2[1:5, 1:5]
+write.csv(net_D_emp_2, "./net_D_emp_2.csv")
+#write.csv(net_D_emp_2[1:200,1:200], "./data/test_net_D_emp_2.csv")
 
 
-
-
+# net_D_emp[which(net_D_emp !=0, arr.ind = TRUE) ]
+# net_D_emp_lower <- lower.tri(net_D_emp[1:5,1:5], diag = FALSE)
+# net_D_emp_lower
+# net_D_emp_lower <- net_D_emp[1:5,1:5][net_D_emp_lower]
+# net_D_emp_lower
+# net_D_emp_lower[which(net_D_emp_lower != 0, arr.ind = TRUE)]
 
 
 #net_D_emp_lower
-net_D_emp_lower <- lower.tri(net_D_emp, diag = FALSE)
-net_D_emp_lower <- net_D_emp[net_D_emp_lower]
-net_D_emp_lower
-net_D_emp_lower <- net_D_emp_lower[which(net_D_emp_lower != 0, arr.ind = TRUE)]
-length(net_D_emp_lower[net_D_emp_lower > 0.2]) #3262
-length(net_D_emp_lower[net_D_emp_lower > 0.1]) #48266
-length(net_D_emp_lower[net_D_emp_lower > 0.05]) #745228
-hist(net_D_emp_lower[net_D_emp_lower > 0.2])
+net_D_emp_lower2 <- lower.tri(net_D_emp_2, diag = FALSE)
+class(net_D_emp_lower2) # marix array
+dim(net_D_emp_lower2) # 2554  2554
+net_D_emp_lower2[1:5, 1:5]
+net_D_emp_2 <- net_D_emp_2[net_D_emp_lower2]
+length(net_D_emp_2)
+#net_D_emp_lower2 <- net_D_emp_lower2[which(net_D_emp_lower2 != 0, arr.ind = TRUE)]
+length(net_D_emp_2[net_D_emp_2 > 0.2]) #2323
 
-####
-##minet with discretization equalfreq and estimator mi.mm
-# library(future)
-# plan(tweak(workers=4, cluster))
-net_D_mm <- minet(mi_D_t, disc = "equalfreq", estimator = "mi.mm")
-#, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_D)) 
-#plot( as(net_D_mm ,"graphDEL") )
-net_D_mm[1:5, 1:5]
-colnames(net_D_mm[1:5, 1:5])
-rownames(net_D_mm[1:5,1:5])
-dim(net_D_mm) #3681 3681
-class(net_D_mm)  # matrix array
-net_D_mm != 0
-net_D_mm["229686_at", 2]
-#test
-comb <- t(combn(colnames(net_D_mm[1:5,1:5]), 2))
-data.frame(comb, mi=net_D_mm[comb])
-net_D_mm[which(net_D_mm !=0, arr.ind = TRUE) ]
-net_D_mm_lower <- lower.tri(net_D_mm[1:5,1:5], diag = FALSE)
-net_D_mm_lower
-net_D_mm_lower <- net_D_mm[1:5,1:5][net_D_mm_lower]
-net_D_mm_lower
-net_D_mm_lower[which(net_D_mm_lower != 0, arr.ind = TRUE)]
-
-
-#net_D_mm_lower
-net_D_mm_lower <- lower.tri(net_D_mm, diag = FALSE)
-net_D_mm_lower <- net_D_mm[net_D_mm_lower]
-net_D_mm_lower
-net_D_mm_lower <- net_D_mm_lower[which(net_D_mm_lower != 0, arr.ind = TRUE)]
-length(net_D_mm_lower[net_D_mm_lower > 0.2]) #6285
-length(net_D_mm_lower[net_D_mm_lower > 0.1]) #150457
-length(net_D_mm_lower[net_D_mm_lower > 0.05]) #1150014
-hist(net_D_mm_lower[net_D_mm_lower > 0.2])
+hist(net_D_emp_2[net_D_emp_2 > 0.2])
 
 
 ##
