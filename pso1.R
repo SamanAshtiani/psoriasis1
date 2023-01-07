@@ -156,10 +156,7 @@ ex[2,"probe"]
 ## replace sample IDs with group names
 sampleInfo$group <- paste0(sampleInfo$group, 1:170)
 colnames(ex)[1:170] <- sampleInfo$group
-# ex[1:5, 1:5]
-# dim(ex)
-# ex$geneSymbol
-# colnames(ex)
+
 
 
 ### if zeros and large values ----
@@ -298,23 +295,11 @@ new2000_u_id <- new2000_u_df$ID
 
 # CMM1 begings ----
 
-# """
-# #for WGCNA:
-# We do not recommend filtering genes by differential expression. WGCNA is designed to be an unsupervised analysis
-# method that clusters genes based on their expression profiles. Filtering genes by differential expression will 
-# lead to a set of correlated genes that will essentially form a single (or a few highly correlated) modules. 
-# It also completely invalidates the scale-free topology assumption,
-# so choosing soft thresholding power by scale-free topology fit will fail.
-# """
-
 ## Using new expression data based on GEO2R ----
 ## separate D and N data ----
 
 ex[1:5, 1:5]
 dim(ex)
-#colnames(ex)[grep("N", colnames(ex))]
-#ex$geneSymbol[grepl("NA", ex$geneSymbol)] #logical error, gets all the genes with letters "NA" as well
-#ex$geneSymbol[!is.na(ex$geneSymbol)][1:10]
 ex <- ex[!is.na(ex$geneSymbol),]
 
 N <- ex[,grepl("N", colnames(ex))]
@@ -431,29 +416,6 @@ class(mi_D)  # data.frame
 mi_D[1:5, 1:5]
 dim(mi_D) # 2554  85
 
-# the missing values had no gene name
-# which(is.na(mi_D), arr.ind = TRUE)
-# missing_values_df <- as.data.frame(which(is.na(mi_D), arr.ind = TRUE))
-# missing_values_df[1:20, 1:2]
-# missing_genes_rowidx <- unique(missing_values_df$row)
-# missing_genes_rowidx
-# length(missing_genes_rowidx)
-# mi_D[79,]
-# dim(mi_D) #4087 85
-# dim(mi_D[-missing_genes_rowidx,])  #3681 85
-# dim(na.omit(mi_D))                 #3681 85
-# 
-# mi_D[-missing_genes_rowidx,][1:10, 1:10]
-# na.omit(mi_D)[1:10,1:10]
-# 
-# mi_D[-missing_genes_rowidx,][79,]
-# na.omit(mi_D)[79,]
-# 
-# mi_D <- mi_D[-missing_genes_rowidx,]
-# dim(mi_D)  #3681 85
-# 
-# mi_D_t <- as.data.frame(t(mi_D))
-# dim(mi_D_t)  #85 3681
 
 #imputation
 mi_D_imp <- mi_D
@@ -485,39 +447,6 @@ library(minet)
 ####
 ##run minet with discretization none and estimator spearman
 net_N <- minet(mi_N_imp_t) #, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_N)) 
-
-# plot( as(net_N ,"graphNEL") )
-# net_N[1:5, 1:5]
-# colnames(net_N[1:5, 1:5])
-# rownames(net_N[1:5,1:5])
-# dim(net_N) 
-# class(net_N)  # matrix array
-# net_N != 0
-# net_N["200092_s_at", 2]
-# #test accomplished on dummy dataset
-# comb <- t(combn(colnames(net_N[1:5,1:5]), 2))
-# comb
-# class(comb) #matrix array          
-# data.frame(comb, mi=net_N[comb])
-
-# net_N[which(net_N[1:5,1:5] !=0, arr.ind = TRUE) ]
-# net_N_lower <- lower.tri(net_N[1:5,1:5], diag = FALSE)
-# class(net_N_lower)
-# net_N_lower <- net_N[1:5,1:5][net_N_lower]
-# net_N_lower
-# net_N_lower[which(net_N_lower != 0, arr.ind = TRUE)]
-# 
-# 
-# #net_N_lower
-# net_N_lower <- lower.tri(net_N, diag = FALSE)
-# net_N_lower <- net_N[net_N_lower]
-# net_N_lower
-# net_N_lower <- net_N_lower[which(net_N_lower != 0, arr.ind = TRUE)]
-# length(net_N_lower[net_N_lower > 0.2]) #930
-# length(net_N_lower[net_N_lower > 0.1]) #2953
-# length(net_N_lower[net_N_lower > 0.05]) #22752
-# hist(net_N_lower[net_N_lower > 0.2])
-# 
 # trace(minet, edit = TRUE)
 
 
@@ -563,11 +492,11 @@ el_mi_N_emp_2$mi <- round(el_mi_N_emp_2$mi, 2)
 #save mi>0.2 csv
 write.csv(el_mi_N_emp_2, "./el_mi_N_emp_2.csv")
 
-##create 4.0
-# el_mi_N_emp_4 <- el_mi_N_emp[el_mi_N_emp$mi >0.4,]
-# el_mi_N_emp_4$mi <- round(el_mi_N_emp_4$mi, 2)
-# #save mi>0.4 csv
-# write.csv(el_mi_N_emp_4, "./data/el_mi_N_emp_4.csv")
+##create edge-list >0.1
+el_mi_N_emp_1 <- el_mi_N_emp[el_mi_N_emp$mi >0.1,]
+el_mi_N_emp_1$mi <- round(el_mi_N_emp_1$mi, 2)
+#save mi>0.1 csv
+write.csv(el_mi_N_emp_1, "./el_mi_N_emp_1.csv")
 
 
 ## unuique genes of MI > 0.4 
@@ -649,28 +578,6 @@ hist(net_N_mm_lower[net_N_mm_lower > 0.2])
 net_D_emp <- minet(mi_D_imp_t, disc = "equalfreq", estimator = "mi.empirical") 
 net_D_emp <- round(net_D_emp, 2)
 write.csv(net_D_emp,"./adjacency_net_D_emp.csv")
-#, method = "mrnet", estimator = "spearman", disc = "none", nbins = sqrt(nrow(mi_N)) 
-#plot( as(net_N_emp ,"graphNEL") )
-# temp.emp <- net_N_emp[1:5, 1:5]
-# temp.emp
-# ind_mx <- which(temp.emp != 0,arr.ind = TRUE)
-# ind_mx
-# rownames(ind_mx)
-# ind_mx[,1]
-# ind_mx[,2]
-# temp.emp[ind_mx[,1], ind_mx[,2]]
-# temp.emp[ind_mx]
-
-
-# class(which(temp.emp == 0,arr.ind = TRUE)) # matrix array
-# temp.emp[which(temp.emp == 0, arr.ind=TRUE)]
-# colnames(net_N_emp[1:5, 1:5])
-# rownames(net_N_emp[1:5,1:5])
-# net_N_emp[1:5,1:5]
-# dim(net_N_emp) # 2483 2483
-# class(net_N_emp)  # matrix array
-# length( sum(net_N_emp == 0))
-# net_N_emp[net_N_emp == 0]
 
 
 # create edgelist
@@ -687,10 +594,10 @@ el_mi_D_emp_2$mi <- round(el_mi_D_emp_2$mi, 2)
 write.csv(el_mi_D_emp_2, "./el_mi_D_emp_2.csv")
 
 ##create > 0.1
-el_mi_N_emp_1 <- el_mi_N_emp[el_mi_N_emp$mi >0.1,]
-el_mi_N_emp_1$mi <- round(el_mi_N_emp_1$mi, 2)
+el_mi_D_emp_1 <- el_mi_D_emp[el_mi_D_emp$mi >0.1,]
+el_mi_D_emp_1$mi <- round(el_mi_D_emp_1$mi, 2)
 #save mi>0.1 csv
-write.csv(el_mi_N_emp_1, "./el_mi_N_emp_1.csv")
+write.csv(el_mi_D_emp_1, "./el_mi_D_emp_1.csv")
 
 
 ## Disease unuique genes of MI > 0.2 
@@ -709,13 +616,6 @@ net_D_emp_2[1:5, 1:5]
 write.csv(net_D_emp_2, "./net_D_emp_2.csv")
 #write.csv(net_D_emp_2[1:200,1:200], "./data/test_net_D_emp_2.csv")
 
-
-# net_D_emp[which(net_D_emp !=0, arr.ind = TRUE) ]
-# net_D_emp_lower <- lower.tri(net_D_emp[1:5,1:5], diag = FALSE)
-# net_D_emp_lower
-# net_D_emp_lower <- net_D_emp[1:5,1:5][net_D_emp_lower]
-# net_D_emp_lower
-# net_D_emp_lower[which(net_D_emp_lower != 0, arr.ind = TRUE)]
 
 
 #net_D_emp_lower
@@ -737,89 +637,12 @@ save.image("mi.RData")
 load("mi.RData")
 
 
+# iGraph codes ----
+#are in /Users/saman/Dropbox/systems_biology_projects/pso_cmm/pso1_complete.R
 
-# Using rGraph ----
-
-
-#install.packages('igraph')
-#install.packages('DirectedClustering')
-library(igraph)
-library(DirectedClustering)
-
-makeGraph <- function(graph){
-  vertexList = c()
-  for(i in 1:nrow(graph)){
-    vertexList <- c(vertexList, graph[i,1], graph[i,2])
-  }
-  vertexList = unique(vertexList)
-  numericalGraph = matrix("", nrow(graph), ncol(graph))
-  numericalGraph[,1] = match(graph[,1], vertexList)
-  numericalGraph[,2] = match(graph[,2], vertexList)
-  numericalGraph[,3] = graph[,3]
-  #uniqueNumGraph = numericalGraph[!duplicated(numericalGraph),]
-  edgeList = c()
-  for(i in 1:nrow(numericalGraph)){
-    edgeList <- c(edgeList, numericalGraph[i,1], numericalGraph[i,2])
-  }
-  #numericalGraph= numericalGraph[,-3]
-  g = make_undirected_graph(edgeList)
-  E(g)$weight = graph[,3]
-  g
-}
+# Cytoscape ---- 
+# edge-list csv files are in "/Users/saman/git/psoriasis1"
+# Cytoscape: input edgelists via "import network from file system"
 
 
-### READ AND ANALYZE NETS----
-
-path = "/Users/saman/Dropbox/systems_biology_projects/pso_cmm/data/"
-
-#### 1. Normal net
-net.normal <- read.csv(paste(path, 'el_mi_N_emp_2.csv', sep = ''), stringsAsFactors = FALSE)
-net.normal <- net.normal[,-1]
-g <- makeGraph(net.normal)
-
-V(g)$degree <- degree(g)                        # Degree centrality
-V(g)$eig <- evcent(g)$vector                    # Eigenvector centrality
-V(g)$betweenness <- betweenness(g)              # Vertex betweenness centrality
-
-net.normal.centrality <- data.frame(row.names   = vertexList[V(g)],
-                                    degree      = V(g)$degree,
-                                    #closeness   = V(g)$closeness,
-                                    betweenness = V(g)$betweenness,
-                                    eigenvector = V(g)$eig)
-
-write.csv(file = paste(path,'normal_centralities.csv'), net.normal.centrality)
-
-# compute clustering coefficient 
-#Get Adjacency 
-A<-get.adjacency(g, sparse=FALSE, attr="weight") 
-#Compute Barrat et al. (2004) coefficient 
-BarratClust<-ClustBCG(A, "undirected")
-
-
-
-
-#### 2. Disease net
-net.disease <- read.csv(paste(path, 'el_mi_D_emp_2.csv', sep = ''), stringsAsFactors = FALSE)
-net.disease <- net.disease[,-1]
-g.d <- makeGraph(net.disease)
-
-V(g.d)$degree <- degree(g.d)                        # Degree centrality
-V(g.d)$eig <- evcent(g.d)$vector                    # Eigenvector centrality
-V(g.d)$betweenness <- betweenness(g.d)              # Vertex betweenness centrality
-
-net.disease.centrality <- data.frame(row.names   = vertexList[V(g.d)],
-                                     degree      = V(g.d)$degree,
-                                     betweenness = V(g.d)$betweenness,
-                                     eigenvector = V(g.d)$eig)
-
-write.csv(file = paste(path,'disease_centralities.csv'), net.disease.centrality)
-
-
-# compute clustering coefficient 
-B<-get.adjacency(g.d, sparse=FALSE, attr="weight") 
-#Compute Barrat et al. (2004) coefficient 
-BarratClust<-ClustBCG(B, "undirected")
-
-
-#? adjacency to edgelist
 
